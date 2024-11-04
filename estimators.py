@@ -4,9 +4,14 @@ import scipy.linalg as la
 from scipy.optimize import curve_fit
 import cv2
 
-def logistic_function(xs, params):
-    k, x0, y0, L = params
+def logistic_function(xs, k, x0, y0, L):
+    #k, x0, y0, L = params
     return L/(1 + np.exp(-k * (xs-x0))) + y0
+
+def logistic_derivate(xs, k, L):
+    numerator = L*k*np.exp(k*(xs))
+    denominator = np.power(np.exp(k*(xs)) + 1, 2)
+    return numerator/denominator
 
 def line_inference(image_params, line_index, axis=0):
     std, snr = image_params
@@ -25,6 +30,11 @@ def line_inference(image_params, line_index, axis=0):
         return []
     
     xs = np.linspace(0, shape[axis], shape[axis])
+    p0 = (1.0, shape[axis]//2, 127.0, 255.0)
+
+    params = curve_fit(logistic_function, xs, line, p0)
+
+    return params[0]
 
 
 
