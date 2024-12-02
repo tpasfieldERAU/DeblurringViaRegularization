@@ -1,8 +1,8 @@
 import numpy as np
 from mpi4py import MPI  # Correct import of mpi4py
-from pylops import Gradient, Identity
-from pylops.optimization.leastsquares import RegularizedInversion
-from pylops.optimization.sparsity import SplitBregman
+from pylops import Gradient, Identity, MatrixMult
+from pylops.optimization.leastsquares import regularized_inversion
+from pylops.optimization.sparsity import splitbregman
 from scipy.optimize import curve_fit
 from scipy.linalg import toeplitz
 from scipy.sparse import kron
@@ -61,7 +61,7 @@ def A_from_sample(xs, k):
     """
     curve = logistic_derivative(xs, k)
     a = toeplitz(curve)
-    A = kron(a, a)
+    A = np.kron(a, a)
     return A
 
 # GCV for Tikhonov regularization
@@ -72,7 +72,8 @@ def gcv_tikhonov(A, b, lambdas):
     n = len(b)
     gcv_scores = []
     for lam in lambdas:
-        x_reg = RegularizedInversion(A, b, [Identity(n)], [lam])
+        print(f"Running tik lam = {lam}")
+        x_reg, _, _, _, _ = regularized_inversion(A, b, [lam*Identity(n)])
         residual = np.linalg.norm(A @ x_reg - b)
         AtA = A.T @ A if isinstance(A, np.ndarray) else A.T * A
         trace = np.trace(np.linalg.inv(AtA + lam * np.eye(n)) @ AtA)
@@ -82,11 +83,11 @@ def gcv_tikhonov(A, b, lambdas):
     best_idx = np.argmin(gcv_scores)
     best_lambda = lambdas[best_idx]
     best_gcv = gcv_scores[best_idx]
-    best_sol = RegularizedInversion(A, b, [Identity(n)], [best_lambda])
+    best_sol, _, _, _, _ = regularized_inversion(A, b, [best_lambda*Identity(n)])
     return best_lambda, best_gcv, best_sol
 
 # GCV for TV regularization
-def gcv_tv(A, b, G, lambdas, niter_inner=5, niter_outer=20, mu=1.0):
+def gcv_tv(A, b, G, lambdas, niter_inner=5, niter_outer=10):
     """
     Generalized Cross-Validation for Total Variation (TV) regularization.
     """
@@ -95,7 +96,8 @@ def gcv_tv(A, b, G, lambdas, niter_inner=5, niter_outer=20, mu=1.0):
     solutions = []
 
     for lam in lambdas:
-        x_tv, _ = SplitBregman(A, b, G, niter_inner=niter_inner, niter_outer=niter_outer, mu=mu, epsRL1s=[lam])
+        print(f"Running tv lam = {lam}")
+        x_tv, _, _ = splitbregman(A, b, [G], niter_inner=niter_inner, niter_outer=niter_outer, mu=1.0, epsRL1s=[lam])
         solutions.append(x_tv)
         residual = np.linalg.norm(A @ x_tv - b)
         trace_approx = n - np.linalg.norm(G @ x_tv, ord=1)
@@ -110,13 +112,16 @@ def gcv_tv(A, b, G, lambdas, niter_inner=5, niter_outer=20, mu=1.0):
 
 if __name__ == "__main__":
     # Load input data
-    calibrators = np.load("./server_prep/calib_images.npz")
-    samples = np.load("./server_prep/kodim02_images.npz")
+    calibrators = np.load("./calib_images.npz")
+    samples = np.load("./kodim02_images.npz")
     true_image = samples['base']
     calibrator = calibrators['2_25']
     image = samples['2_25']
 
-    # Fit logistic parameters
+    print(f"Image shape: {image.shape}")
+    print(f"calib shape: {calibrator.shape}")
+
+    # Fit logistic parameters (140,250)
     means, covs = eval_fit((140, 250), calibrator)
     new_means = weighted_sampling(means, covs, 50)
 
@@ -124,21 +129,32 @@ if __name__ == "__main__":
     params_split = np.array_split(new_means, size)
     local_params = params_split[rank]
 
-    for param in local_params:
+    for param in local_params: #(0, 255, 256)
+        print(f"param : {param}")
         A = A_from_sample(np.linspace(0, 255, 256), param[0])
-        G = Gradient(dims=(256, 256), kind='forward')
-        tik_lambdas = np.logspace(-6, 2, 200)
-        tv_lambdas = np.logspace(-4, 1, 60)
+        A_wrapped = MatrixMult(A)
+        G = Gradient(dims=(image.shape[0], image.shape[0]), kind='forward')
+        tik_lambdas = np.logspace(-6, 2, 100)
+        tv_lambdas = np.logspace(-4, 1, 45)
         
         # Compute optimal solutions
         tik_best_lam, tik_best_gcv, tik_best_sol = gcv_tikhonov(A, image.ravel(), tik_lambdas)
-        tv_best_lam, tv_best_gcv, tv_best_sol = gcv_tv(A, image.ravel(), G, tv_lambdas)
+        tv_best_lam, tv_best_gcv, tv_best_sol = gcv_tv(A_wrapped, image.ravel(), G, tv_lambdas)
         
+        print(f"tk_best_lam:{tik_best_lam}")
+        print(f"tk_best_gcv:{tik_best_gcv}")
+        print(f"tv_best_lam:{tv_best_lam}")
+        print(f"tv_best_gcv:{tv_best_gcv}")
+
         # Save results
         np.savez(
-            f'{param[0]}_sols.npz',
+            f'/scratch/pasfielt/deblur/{param[0]}_sols.npz',
             params=param,
-            tik=[tik_best_lam, tik_best_gcv, tik_best_sol],
-            tv=[tv_best_lam, tv_best_gcv, tv_best_sol]
+            tik_lam=tik_best_lam, 
+            tik_gcv=tik_best_gcv, 
+            tik_sol=tik_best_sol,
+            tv_lam=tv_best_lam, 
+            tv_gcv=tv_best_gcv,
+            tv_sol=tv_best_sol
         )
         print(f"Rank {rank}: Processed parameter {param}")
