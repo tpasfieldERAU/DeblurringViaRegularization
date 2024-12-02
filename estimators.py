@@ -2,13 +2,14 @@ import numpy as np
 from scipy.stats import norm
 import scipy.linalg as la
 from scipy.optimize import curve_fit
+from params import *
 import cv2
 
 def logistic_function(xs, k, x0, y0, L):
     #k, x0, y0, L = params
     return L/(1 + np.exp(-k * (xs-x0))) + y0
 
-def logistic_derivate(xs, k, L):
+def logistic_derivative(xs, k, L):
     numerator = L*k*np.exp(k*(xs))
     denominator = np.power(np.exp(k*(xs)) + 1, 2)
     return numerator/denominator
