@@ -1,0 +1,6 @@
+mpi4py
+numexpr
+numpy
+pylops
+pylops-mpi
+scipy
