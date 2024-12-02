@@ -482,3 +482,6 @@ TSWLatexianTemp*
 
 prepared_images
 prepared_images/*
+
+test.ipynb
+template.py
