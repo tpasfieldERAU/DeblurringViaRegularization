@@ -80,6 +80,13 @@
 \end{titlepage}
 %\maketitle
 
+\section*{TEMPORARY PLANNING}
+\begin{itemize}
+  \item Include derivation of optimized $A^T A$ algorithm.
+  \item Include usage of iterative solvers rather than factorization solvers.
+  \item 
+\end{itemize}
+
 %\begin{multicols}{2}
 \section*{Introduction}
 Image blur hinders quantitative image analysis, especially in the field of radiographic imaging. By approaching image deblurring as deconvolution (an ill-posed inverse problem), methods such as Tikhonov and Total Variation Regularization present appropriate solutions. As non-blind deblurring methods, the regularization methods require an estimate or exact measurement of the Point Spread Function (PSF) of the optical system. The PSF is unknown but can be estimated from a calibration image. This estimation process introduces uncertainty into the final solution. In this work, I aim to provide a comprehensive analysis of the uncertainty propagation from the PSF estimate through the regularization processes. The results will provide insight into the deblurring methods already in use, and allow for informed analysis of the deblurred outputs.
@@ -268,6 +275,9 @@ Unlike typical GCV use, we don't have knowledge of the true image to validate ag
 
 Though there is no derivation for total variation, there are other works which attempt to create a strong GCV cost function for it. Dr. You-Wei Wen of Hunan Normal University \cite{wen_using_2018} derives a GCV function for total variation by finding a representation resembling Tikhonov regularization, then using the known Tikhonov derivation to find the cost. This method will likely be implemented in this work, but that is uncertain.
 
+\section*{Model Formulation}
+
+
 \section*{Methodology}
 Now that we have the foundation of this work laid out, the actual focus of what will be executed must be explained. Within the regularization systems described, all systems rely heavily on the blurring matrix \textbf{A}. If you recall, this matrix is a prediction of what the real blurring process changed, and not a perfect match. This prediction relies on assumptions which may be flawed, and the actual model matching is influenced by noise and randomness within a given observation. We would like to understand how error in this prediction propagates through the regularization and GCV processes to affect the final resolved image.
 
@@ -321,7 +331,11 @@ Initial plans for the computation consist of the following:
   \item Solution images will be stacked into a tensor, with statistics computed along the new axis element-wise, such as standard deviation.
 \end{enumerate}
 
-\section*{Deliverables}
+
+\section*{Results}
+
+
+\section*{Discussion}
 \begin{itemize}
   \item \normalsize \st{Topic Submission} \footnotesize Due September 20th
   \item \normalsize \st{Project Proposal} \footnotesize Due October 28th
