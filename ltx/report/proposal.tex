@@ -4,7 +4,7 @@
 \usepackage{biblatex}
 \usepackage{titling}
 \usepackage{float}
-\usepackage[left=1.5cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
+\usepackage[left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry}
 \usepackage{fancyhdr}
 \usepackage{multicol}
 \usepackage{adjustbox}
@@ -50,6 +50,7 @@
 \def\figurewidthalt{6cm}
 \def\axisdefaultwidth{\figurewidth}
 
+
 \def\N{255}
 \begin{document}
 \begin{titlepage}
@@ -57,9 +58,6 @@
         \vspace*{1cm}
 
         \LARGE \textbf{Uncertainty Propagation in Regularization-Based Image Deblurring}
-
-        \vspace{0.5cm}
-        \Large Research Project Proposal
         
         \vspace{2.0cm}
         \large \textbf{Thomas Pasfield}
@@ -76,7 +74,9 @@
         \normalsize Department of Mathematics\\
         Embry-Riddle Aeronautical University\\
         Daytona Beach, FL
+
     \end{center}
+    \abstract{\raggedright Image deblurring is a fundamental problem in computational imaging, where the presence of noise and imperfections in the estimated Point Spread Function (PSF) often hampers solution accuracy. Existing work has highlighted the importance of regularization methods, such as Tikhonov and total variation regularization, in mitigating ill-posedness in image reconstruction tasks. However, the role of PSF uncertainty in the propagation of errors through the deblurring process remains underexplored. These methods are used where repeatability and traceability is required, such as in high precision industrial radiology. This paper investigates uncertainty propagation in image deblurring using PyLops and distributed computation via MPI. The PSF is estimated from a calibration image, with uncertainty modeled through weighted sampling with regard to noise variance from a normal distribution centered on the best-fit PSF. Regularization parameter selection is performed via Generalized Cross-Validation (GCV). By analyzing the variance and Root Mean Square Error of the resulting solutions, we demonstrate that areas of high variance correspond to locations with amplified uncertainty due to the PSF error. These results provide a systematic way to assess error localization in deblurred images, offering a valuable diagnostic tool for improving reliability in image restoration workflows. The proposed approach enhances understanding of uncertainty impacts and informs the development of robust computational imaging techniques.}
 \end{titlepage}
 %\maketitle
 
@@ -93,7 +93,24 @@ Image blur hinders quantitative image analysis, especially in the field of radio
 
 Existing work in this application is thoroughly explored by Dr. Jordan Pillow of the Nevada National Security Site in his 2021 PhD Thesis. \cite{pillow_bayesian_2021} % TODO
 
+% NEW
+
+In computational imaging, image deblurring plays a pivotal role in restoring images that have been degraded due to blurring effects, often caused by imperfect imaging systems or environmental factors. While several methods have been proposed to solve the inverse problem of deblurring, the challenges associated with uncertainty in key parameters—such as the point spread function (PSF)—remain a significant area of research. Regularization techniques, particularly Tikhonov and total variation (TV) regularization, have proven effective in mitigating the ill-posedness of the deblurring problem. However, these methods often assume an idealized, error-free PSF, which is rarely the case in real-world scenarios. The presence of uncertainty in the PSF can propagate through the deblurring process, leading to unreliable and biased results in the final image.
+
+This paper aims to investigate the propagation of uncertainty in image deblurring using regularization techniques. Specifically, we focus on Tikhonov and total variation regularization methods, implemented using the PyLops framework, which allows for efficient handling of large-scale imaging problems. The PSF is estimated from a calibration image, introducing inherent uncertainty into the deblurring process. The paper explores how this uncertainty propagates through the solution space, influencing the final deblurred image. By employing weighted sampling around the best-fit PSF, we simulate the effect of different levels of uncertainty and analyze how it impacts the quality and reliability of the reconstructed images.
+
+An essential aspect of this work is the selection of optimal regularization parameters, which is achieved through generalized cross-validation (GCV). GCV is employed to automatically select the regularization parameters that best balance the trade-off between fitting the data and controlling noise amplification. This choice is crucial, as an improperly chosen regularization parameter can exacerbate the uncertainty in the deblurring process, leading to inaccurate or overly smoothed results. The use of MPI for distributed computation ensures scalability, allowing for the efficient handling of large images or large numbers of uncertainty samples.
+
+To quantify the uncertainty propagation, we focus on analyzing the variance and descriptive statistics of the resulting deblurred images. The variance of the pixel values across multiple sampled solutions serves as an indicator of the uncertainty present in different regions of the image. Areas with higher variance are more sensitive to PSF estimation errors, and the analysis of these regions provides a means of identifying potential artifacts or inaccuracies. The results of this study provide a framework for understanding how PSF uncertainty affects image restoration, offering insights into where errors are most likely to occur and how they can be mitigated in future imaging systems.
+
 \section*{Problem Description}
+While much work has been done on improving image deblurring techniques, the issue of uncertainty propagation due to inaccurate PSF estimates has been less explored. In many practical applications, such as astronomical imaging, medical imaging, and remote sensing, the PSF is often estimated through calibration images or other indirect methods. These estimates are rarely perfect, and even small errors in the PSF can lead to significant distortions in the deblurred image. Moreover, the deblurring process itself is computationally expensive, especially for large images, which limits the ability to explore multiple PSF hypotheses or model the uncertainty effectively.
+
+The key challenge in addressing this issue lies in quantifying the impact of PSF uncertainty on the deblurring process. Traditional methods focus on point estimates of the PSF, but do not account for the variability that exists in real-world scenarios. Without understanding how uncertainty propagates, it is difficult to identify where errors in the reconstructed image occur or to assess the confidence in the resulting image quality. Furthermore, the regularization parameters that control the smoothing effect must be chosen carefully, as they can either amplify or suppress the effects of uncertainty. This makes the problem even more complex, as selecting the right parameters requires balancing the trade-off between noise suppression and image detail restoration. Thus, a systematic approach to modeling and quantifying uncertainty propagation is essential for improving the robustness and reliability of image deblurring methods.
+
+
+\section*{Model Formulation}
+
 \subsection*{Blur as Convolution}
 Performing regularization requires this problem to be approached with traditional computer vision techniques rather than the machine learning techniques that have become more popular. These traditional computer vision techniques often represent operations on images as linear models, which is a practice which will be continued here. Our image, $\mathbf{X}$, is a two-dimensional matrix representing a black-and-white image or a single color channel from a color image, with shape $(m,n)$. The color depth of the image is largely irrelevant. The process of image blurring can be represented as a convolution of the PSF across the image, cropped to the original window of the image. The blurred image is represented by $\mathbf{B}$, which shares the same shape $(m,n)$ of the original image. This system is shown in Equation \eqref{eqn:conv}.
 
@@ -275,8 +292,6 @@ Unlike typical GCV use, we don't have knowledge of the true image to validate ag
 
 Though there is no derivation for total variation, there are other works which attempt to create a strong GCV cost function for it. Dr. You-Wei Wen of Hunan Normal University \cite{wen_using_2018} derives a GCV function for total variation by finding a representation resembling Tikhonov regularization, then using the known Tikhonov derivation to find the cost. This method will likely be implemented in this work, but that is uncertain.
 
-\section*{Model Formulation}
-
 
 \section*{Methodology}
 Now that we have the foundation of this work laid out, the actual focus of what will be executed must be explained. Within the regularization systems described, all systems rely heavily on the blurring matrix \textbf{A}. If you recall, this matrix is a prediction of what the real blurring process changed, and not a perfect match. This prediction relies on assumptions which may be flawed, and the actual model matching is influenced by noise and randomness within a given observation. We would like to understand how error in this prediction propagates through the regularization and GCV processes to affect the final resolved image.
@@ -343,6 +358,10 @@ Initial plans for the computation consist of the following:
   \item \normalsize Rough Draft \footnotesize Due December 2nd
   \item \normalsize Final Report \footnotesize Due December 9th
 \end{itemize}
+
+\section*{Conclusion}
+
+\section*{Acknowledgements}
 
 %\nocite{*}
 \printbibliography
