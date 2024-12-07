@@ -485,3 +485,5 @@ prepared_images/*
 
 test.ipynb
 template.py
+
+*.zip
