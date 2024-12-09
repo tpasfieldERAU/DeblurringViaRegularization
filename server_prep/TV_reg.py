@@ -7,10 +7,6 @@ from scipy.ndimage import uniform_filter
 from mpi4py import MPI
 
 def gaussian_kernel(n, std, normalized=False):
-    '''
-    Generates a n x n matrix with a centered gaussian 
-    of standard deviation std centered on it. If normalised,
-    its volume equals 1.'''
     gaussian1D = siggaussian(n, std)
     gaussian2D = np.outer(gaussian1D, gaussian1D)
     if normalized:

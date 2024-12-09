@@ -15,11 +15,11 @@ def gaussian_kernel(n, std, normalized=True):
         gaussian2d /= (2*np.pi*(std**2))
     return gaussian2d
 
-def cgtik(blur_op, id_op, tols=1e-4, maxiters=50):
+def cgtik(blur_op, id_op, tols=1e-4, maxiters=200):
     test, _, _ = cg(blur_op.T * blur_op + id_op, blur_op.T*blurred_image.ravel(), tol=tols, niter=maxiters, x0=blurred_image.ravel())
     return test.reshape(256,256)
 
-def gcv(lambd, blur_op, tols=1e-4, maxiters=50):
+def gcv(lambd, blur_op, tols=1e-4, maxiters=200):
     id_op = lambd * Identity(256**2, 256**2, dtype='float32')
     reg_op = blur_op.T * blur_op + id_op
     rhs = blur_op.T*blurred_image.ravel()
@@ -41,33 +41,33 @@ def gcv(lambd, blur_op, tols=1e-4, maxiters=50):
     return -residual_norm / (2*trace_term)**2
 
 
-def residual(lambd, blur_op, tols=1e-4, maxiters=50):
+def residual(lambd, blur_op, tols=1e-4, maxiters=200):
     id_op = lambd * Identity(256**2, 256**2, dtype='float32')
     reg_op = blur_op.T * blur_op + id_op
     rhs = blur_op.T*blurred_image.ravel()
     deblurred_image,_,_ = cg(reg_op, rhs, tol=tols, niter=maxiters, x0=blurred_image.ravel())
     # deblurred_image = np.clip(deblurred_image, 0, 255).astype(np.uint8)
-    residual = blur_op@deblurred_image - blurred_image.ravel()
+    residual = (blur_op@deblurred_image).astype(np.float32) - blurred_image.ravel().astype(np.float32)
     residual_norm = np.linalg.norm(residual)**2
     return residual_norm
 
 
-def mse(lambd, blur_op, tols=1e-4, maxiters=50):
+def mse(lambd, blur_op, tols=1e-4, maxiters=200):
     id_op = lambd * Identity(256**2, 256**2, dtype='float32')
     reg_op = blur_op.T * blur_op + id_op
     rhs = blur_op.T*blurred_image.ravel()
     deblurred_image,_,_ = cg(reg_op, rhs, tol=tols, niter=maxiters, x0=blurred_image.ravel())
     # deblurred_image = np.clip(deblurred_image, 0, 255).astype(np.uint8)
-    residual = deblurred_image.reshape(256,256) - true_image
+    residual = deblurred_image.reshape(256,256).astype(np.float32) - true_image.astype(np.float32)
     residual = np.square(residual)
     return np.sum(residual)
 
-def ssim(lambd, blur_op, tols=1e-4, maxiters=50, data_range=255, window_size=7):
+def ssim(lambd, blur_op, tols=1e-4, maxiters=200, data_range=255, window_size=3):
     id_op = lambd * Identity(256**2, 256**2, dtype='float32')
     reg_op = blur_op.T * blur_op + id_op
     rhs = blur_op.T*blurred_image.ravel()
     deblurred_image,_,_ = cg(reg_op, rhs, tol=tols, niter=maxiters, x0=blurred_image.ravel())
-    deblurred_image = deblurred_image.reshape(256,256)
+    deblurred_image = deblurred_image.reshape(256,256).astype(np.float32)
 
     # Constants for numerical stability
     C1 = (0.01 * data_range) ** 2
@@ -94,18 +94,18 @@ def ssim(lambd, blur_op, tols=1e-4, maxiters=50, data_range=255, window_size=7):
     return -np.mean(ssim_map)  # Return the mean SSIM over all windows
 
 
-def tik_deblur(sigma, tols=1e-4, maxiters=50, kernel_size=64, param_selector='mse'):
+def tik_deblur(sigma, tols=1e-4, maxiters=200, kernel_size=32, param_selector='mse'):
     print(f"Rank {rank}: Deblurring with std={sigma}")
     blur_op = Convolve2D(image_shape, gaussian_kernel(kernel_size, sigma, normalized=True), offset=(kernel_size//2, kernel_size//2), method='fft', dtype='float32')
     match param_selector:
         case 'mse':
-            best_lambd = minimize_scalar(lambda l: mse(l, blur_op), bounds=(1e-6, 10), method='bounded')
+            best_lambd = minimize_scalar(lambda l: mse(l, blur_op, maxiters=maxiters), bounds=(1e-6, 10), method='bounded')
         case 'gcv':
-            best_lambd = minimize_scalar(lambda l: gcv(l, blur_op), bounds=(1e-6, 10), method='bounded')
+            best_lambd = minimize_scalar(lambda l: gcv(l, blur_op, maxiters=maxiters), bounds=(1e-6, 10), method='bounded')
         case 'ssim':
-            best_lambd = minimize_scalar(lambda l: ssim(l, blur_op), bounds=(1e-6, 10), method='bounded')
+            best_lambd = minimize_scalar(lambda l: ssim(l, blur_op, maxiters=maxiters), bounds=(1e-6, 10), method='bounded')
         case 'residual':
-            best_lambd = minimize_scalar(lambda l: residual(l, blur_op), bounds=(1e-6, 10), method='bounded')
+            best_lambd = minimize_scalar(lambda l: residual(l, blur_op, maxiters=maxiters), bounds=(1e-6, 10), method='bounded')
         case _:
             raise(IndexError("Invalid match case."))
         
@@ -123,19 +123,19 @@ if __name__ == '__main__':
     image_shape = (height, width)
     N = height*width
 
-    images = np.load('kodim02_images.npz')
+    images = np.load('demo.npz')
     true_image = images['base'].astype(np.float32)
-    blurred_image = images['2_5'].astype(np.float32)
+    blurred_image = images['blur'].astype(np.float32)
     
     samples = None
     values_split = None
 
     if rank == 0:
-        samples = np.load('samples.npz')['samples']
+        samples = [0.5, 1.25, 1.4, 1.5, 1.6, 1.75, 2.5] # np.load('samples.npz')['samples'][:20]
         values_split = np.array_split(samples, size)
 
     local_values = comm.scatter(values_split, root=0)
-    local_results = {str(val):tik_deblur(val, param_selector='residual') for val in local_values}
+    local_results = {str(val):tik_deblur(val, param_selector='ssim', maxiters=2000) for val in local_values}
 
     gathered_results = comm.gather(local_results, root=0)
 
@@ -143,4 +143,4 @@ if __name__ == '__main__':
         results = {}
         for local_dict in gathered_results:
             results.update(local_dict)
-        np.savez("TIK_RESIDUAL_Batch.npz", **{str(k): v for k,v in results.items()})
+        np.savez("TIK_DEMO_Batch.npz", **{str(k): v for k,v in results.items()})
