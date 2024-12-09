@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from numpy.random import multivariate_normal
 import matplotlib.pyplot as plt
+from scipy.special import erf
 
 # Logistic functions for calibrator modeling
 def logistic_function(xs, k, x0):
@@ -21,8 +22,11 @@ def logistic_derivative(xs, k):
     denominator = (np.exp(k * xs) + 1)**2
     return numerator / denominator
 
+def erf_model(x, sigma, b):
+    return 255*0.5 * erf((x-b) / (np.sqrt(2)*sigma)) + 0.5*255
+
 # Parameter estimation using curve fitting
-def eval_fit(index_range, calibrator):
+def eval_fit(index_range, calibrator, method):
     """
     Fit logistic function to a range of lines in the calibrator image.
     """
@@ -32,7 +36,7 @@ def eval_fit(index_range, calibrator):
     xs = np.tile(xs0, num_lines)  # Faster equivalent of concatenating xs0
     p0 = (1.0, calibrator.shape[0] // 2)
 
-    means, covs = curve_fit(logistic_function, xs, lines.ravel(), p0)
+    means, covs = curve_fit(method, xs, lines.ravel(), p0)
     return means, covs
 
 # Sampling from a multivariate normal distribution
@@ -43,11 +47,14 @@ def weighted_sampling(means, covs, n_samples):
     samples = multivariate_normal(mean=means, cov=covs, size=n_samples)
     return samples
 
-calibrator = np.load("server_prep/calib_images.npz")
+calibrator = np.load("calib_images.npz")
 calib = calibrator['2_25']
 
-means, covs = eval_fit((140, 250), calib)
-new_means = weighted_sampling(means, covs, 25)
+means, covs = eval_fit((140, 250), calib, erf_model)
 
-test = np.random.normal(means[0], np.sqrt(covs[0,0])*5, 256)
-np.savez('server_prep/samples.npz', samples=np.array(test))
+print(means)
+test = np.random.normal(means[0], 0.5, 512)
+
+#test = np.random.normal(1.6/means[0], 0.5, 1000)
+#test = 1.4738091812419374791086353413077 / test
+np.savez('samples.npz', samples=np.array(test))

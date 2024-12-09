@@ -95,6 +95,7 @@ def ssim(lambd, blur_op, tols=1e-4, maxiters=50, data_range=255, window_size=7):
 
 
 def tik_deblur(sigma, tols=1e-4, maxiters=50, kernel_size=64, param_selector='mse'):
+    print(f"Rank {rank}: Deblurring with std={sigma}")
     blur_op = Convolve2D(image_shape, gaussian_kernel(kernel_size, sigma, normalized=True), offset=(kernel_size//2, kernel_size//2), method='fft', dtype='float32')
     match param_selector:
         case 'mse':
@@ -130,11 +131,11 @@ if __name__ == '__main__':
     values_split = None
 
     if rank == 0:
-        samples = np.load('samples.npz')['samples'][:2]
+        samples = np.load('samples.npz')['samples']
         values_split = np.array_split(samples, size)
 
     local_values = comm.scatter(values_split, root=0)
-    local_results = {str(val):tik_deblur(val, param_selector='mse') for val in local_values}
+    local_results = {str(val):tik_deblur(val, param_selector='residual') for val in local_values}
 
     gathered_results = comm.gather(local_results, root=0)
 
@@ -142,4 +143,4 @@ if __name__ == '__main__':
         results = {}
         for local_dict in gathered_results:
             results.update(local_dict)
-        np.savez("TIK_Batch.npz", **{str(k): v for k,v in results.items()})
+        np.savez("TIK_RESIDUAL_Batch.npz", **{str(k): v for k,v in results.items()})
