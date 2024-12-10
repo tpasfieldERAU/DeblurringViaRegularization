@@ -1,18 +1,21 @@
-\documentclass[letterpaper, 10pt, titlepage, twocolumn]{article}
+\documentclass[letterpaper, 11pt, titlepage, twocolumn]{article}
 \usepackage{graphicx}
 \usepackage{authblk}
 \usepackage{biblatex}
 \usepackage{titling}
 \usepackage{float}
-\usepackage[left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage[left=4cm, right=4cm, top=3.25cm, bottom=3.25cm]{geometry}
 \usepackage{fancyhdr}
 \usepackage{multicol}
 \usepackage{adjustbox}
 \usepackage{tikz}
+\usepackage{algorithm}
+\usepackage{algorithmic}
 \usepackage{soul}
 %\usepackage[sc]{titlesec}
 \graphicspath{{./images/}}
 \addbibresource{NNSS.bib}
+\addbibresource{REU-DEIM.bib}
 
 \usepackage{amsmath}
 \tikzset{>=latex} % for LaTeX arrow head
@@ -78,40 +81,26 @@
     \end{center}
     \abstract{\raggedright Image deblurring is a fundamental problem in computational imaging, where the presence of noise and imperfections in the estimated Point Spread Function (PSF) often hampers solution accuracy. Existing work has highlighted the importance of regularization methods, such as Tikhonov and total variation regularization, in mitigating ill-posedness in image reconstruction tasks. However, the role of PSF uncertainty in the propagation of errors through the deblurring process remains underexplored. These methods are used where repeatability and traceability is required, such as in high precision industrial radiology. This paper investigates uncertainty propagation in image deblurring using PyLops and distributed computation via MPI. The PSF is estimated from a calibration image, with uncertainty modeled through weighted sampling with regard to noise variance from a normal distribution centered on the best-fit PSF. Regularization parameter selection is performed via Generalized Cross-Validation (GCV). By analyzing the variance and Root Mean Square Error of the resulting solutions, we demonstrate that areas of high variance correspond to locations with amplified uncertainty due to the PSF error. These results provide a systematic way to assess error localization in deblurred images, offering a valuable diagnostic tool for improving reliability in image restoration workflows. The proposed approach enhances understanding of uncertainty impacts and informs the development of robust computational imaging techniques.}
 \end{titlepage}
-%\maketitle
 
-\section*{TEMPORARY PLANNING}
-\begin{itemize}
-  \item Include derivation of optimized $A^T A$ algorithm.
-  \item Include usage of iterative solvers rather than factorization solvers.
-  \item 
-\end{itemize}
+\tableofcontents
+\newpage
 
-%\begin{multicols}{2}
-\section*{Introduction}
-Image blur hinders quantitative image analysis, especially in the field of radiographic imaging. By approaching image deblurring as deconvolution (an ill-posed inverse problem), methods such as Tikhonov and Total Variation Regularization present appropriate solutions. As non-blind deblurring methods, the regularization methods require an estimate or exact measurement of the Point Spread Function (PSF) of the optical system. The PSF is unknown but can be estimated from a calibration image. This estimation process introduces uncertainty into the final solution. In this work, I aim to provide a comprehensive analysis of the uncertainty propagation from the PSF estimate through the regularization processes. The results will provide insight into the deblurring methods already in use, and allow for informed analysis of the deblurred outputs.
+\section{Introduction}
+In computational imaging, image deblurring plays a pivotal role in restoring images that have been degraded due to blurring effects, often caused by imperfect imaging systems or environmental factors. While several methods have been proposed to solve the inverse problem of deblurring, the challenges associated with uncertainty in key parameters—such as the point spread function (PSF)—remain a significant area of research. Regularization techniques, particularly Tikhonov and Total Variation (TV) regularization, have proven effective in mitigating the ill-posedness of the deblurring problem. However, these methods often assume an idealized, error-free PSF, which is rarely the case in real-world scenarios. The presence of uncertainty in the PSF can propagate through the deblurring process, leading to unreliable and biased results in the final image.
 
-Existing work in this application is thoroughly explored by Dr. Jordan Pillow of the Nevada National Security Site in his 2021 PhD Thesis. \cite{pillow_bayesian_2021} % TODO
+This paper aims to investigate the propagation of uncertainty in image deblurring using regularization techniques.  The PSF is estimated from a calibration image, introducing inherent uncertainty into the deblurring process. The paper explores how this uncertainty propagates through the solution space, influencing the final deblurred image. By employing weighted sampling around the best-fit PSF, we simulate the effect of different levels of uncertainty and analyze how it impacts the quality and reliability of the reconstructed images. An essential aspect of this work is the selection of optimal regularization parameters, which is achieved through generalized cross-validation (GCV). GCV is employed to automatically select the regularization parameters that best balance the trade-off between fitting the data and controlling noise amplification. This choice is crucial, as an improperly chosen regularization parameter can exacerbate the uncertainty in the deblurring process, leading to inaccurate or overly smoothed results. 
 
-% NEW
+To quantify the uncertainty propagation, we focus on analyzing the variance and descriptive statistics of the resulting deblurred images. The variance of the pixel values across multiple sampled solutions serves as an indicator of the uncertainty present in different regions of the image, especially when paired with the pixel-wise means. Areas with higher variance are more sensitive to PSF estimation errors, and the analysis of these regions provides a means of identifying potential artifacts or inaccuracies. A sensitivity analysis model will be generated for the test image which tries to model a linear relationship with the PSF's standard deviation for the intensity of each pixel.
 
-In computational imaging, image deblurring plays a pivotal role in restoring images that have been degraded due to blurring effects, often caused by imperfect imaging systems or environmental factors. While several methods have been proposed to solve the inverse problem of deblurring, the challenges associated with uncertainty in key parameters—such as the point spread function (PSF)—remain a significant area of research. Regularization techniques, particularly Tikhonov and total variation (TV) regularization, have proven effective in mitigating the ill-posedness of the deblurring problem. However, these methods often assume an idealized, error-free PSF, which is rarely the case in real-world scenarios. The presence of uncertainty in the PSF can propagate through the deblurring process, leading to unreliable and biased results in the final image.
-
-This paper aims to investigate the propagation of uncertainty in image deblurring using regularization techniques. Specifically, we focus on Tikhonov and total variation regularization methods, implemented using the PyLops framework, which allows for efficient handling of large-scale imaging problems. The PSF is estimated from a calibration image, introducing inherent uncertainty into the deblurring process. The paper explores how this uncertainty propagates through the solution space, influencing the final deblurred image. By employing weighted sampling around the best-fit PSF, we simulate the effect of different levels of uncertainty and analyze how it impacts the quality and reliability of the reconstructed images.
-
-An essential aspect of this work is the selection of optimal regularization parameters, which is achieved through generalized cross-validation (GCV). GCV is employed to automatically select the regularization parameters that best balance the trade-off between fitting the data and controlling noise amplification. This choice is crucial, as an improperly chosen regularization parameter can exacerbate the uncertainty in the deblurring process, leading to inaccurate or overly smoothed results. The use of MPI for distributed computation ensures scalability, allowing for the efficient handling of large images or large numbers of uncertainty samples.
-
-To quantify the uncertainty propagation, we focus on analyzing the variance and descriptive statistics of the resulting deblurred images. The variance of the pixel values across multiple sampled solutions serves as an indicator of the uncertainty present in different regions of the image. Areas with higher variance are more sensitive to PSF estimation errors, and the analysis of these regions provides a means of identifying potential artifacts or inaccuracies. The results of this study provide a framework for understanding how PSF uncertainty affects image restoration, offering insights into where errors are most likely to occur and how they can be mitigated in future imaging systems.
-
-\section*{Problem Description}
+\section{Problem Description}
 While much work has been done on improving image deblurring techniques, the issue of uncertainty propagation due to inaccurate PSF estimates has been less explored. In many practical applications, such as astronomical imaging, medical imaging, and remote sensing, the PSF is often estimated through calibration images or other indirect methods. These estimates are rarely perfect, and even small errors in the PSF can lead to significant distortions in the deblurred image. Moreover, the deblurring process itself is computationally expensive, especially for large images, which limits the ability to explore multiple PSF hypotheses or model the uncertainty effectively.
 
-The key challenge in addressing this issue lies in quantifying the impact of PSF uncertainty on the deblurring process. Traditional methods focus on point estimates of the PSF, but do not account for the variability that exists in real-world scenarios. Without understanding how uncertainty propagates, it is difficult to identify where errors in the reconstructed image occur or to assess the confidence in the resulting image quality. Furthermore, the regularization parameters that control the smoothing effect must be chosen carefully, as they can either amplify or suppress the effects of uncertainty. This makes the problem even more complex, as selecting the right parameters requires balancing the trade-off between noise suppression and image detail restoration. Thus, a systematic approach to modeling and quantifying uncertainty propagation is essential for improving the robustness and reliability of image deblurring methods.
+The key challenge in addressing this issue lies in quantifying the impact of PSF uncertainty on the deblurring process. Without understanding how uncertainty propagates, it is difficult to identify where errors in the reconstructed image occur or to assess the confidence in the resulting image quality. Furthermore, the regularization parameters that control the smoothing effect must be chosen carefully, as they can either amplify or suppress the effects of uncertainty. This makes the problem even more complex, as selecting the right parameters requires balancing the trade-off between noise suppression and image detail restoration. Thus, a systematic approach to modeling and quantifying uncertainty propagation is essential for improving the robustness and reliability of image deblurring methods.
 
 
-\section*{Model Formulation}
+\section{Model Formulation}
 
-\subsection*{Blur as Convolution}
+\subsection{Blur as Convolution}
 Performing regularization requires this problem to be approached with traditional computer vision techniques rather than the machine learning techniques that have become more popular. These traditional computer vision techniques often represent operations on images as linear models, which is a practice which will be continued here. Our image, $\mathbf{X}$, is a two-dimensional matrix representing a black-and-white image or a single color channel from a color image, with shape $(m,n)$. The color depth of the image is largely irrelevant. The process of image blurring can be represented as a convolution of the PSF across the image, cropped to the original window of the image. The blurred image is represented by $\mathbf{B}$, which shares the same shape $(m,n)$ of the original image. This system is shown in Equation \eqref{eqn:conv}.
 
 \begin{equation}
@@ -119,7 +108,7 @@ Performing regularization requires this problem to be approached with traditiona
     \mathbf{B}=\mathbf{X} \ast \textrm{PSF}
 \end{equation}
 
-\subsection*{Creating a Linear Model}
+\subsection{Creating a Linear Model}
 This equation, however, is not a linear model and cannot be used in regularization. It must first be discretized into matrices. When the PSF depends only on the X and Y axes, it can be known as separable blur. Separable blur can be represented by two different convolution operations: one where the kernel only affects the X-axis, and another where the kernel only affects the Y-axis. A 1-D PSF can be represented as a vector along the axis that is being blurred along. For a rather simple system, this 1-D PSF may approximate a Gaussian distribution. This is demonstrated within Figure \ref{tikz:1dkernel}. From this point on, the exact structure used to discretize the convolution is dependent on the boundary conditions applied to the image. In this case, it is certain that there is a zero boundary, so all work from this point forward will use the structures and methods specific to that case. See \emph{Deblurring Images: Matrices, Spectra, and Filtering} \cite{hansen_deblurring_2006} for more information on this structure.
 
 % Tikz Figure of Gaussian Distribution
@@ -247,13 +236,13 @@ Now that we have these components defined, we can assemble a linear model for an
   \label{fig:kronecker}
 \end{figure}
 
-\subsection*{Regularization}
+\subsection{Regularization}
 Regularization is the standard approach to finding plausible solutions for ill-posed inverse problems, and the techniques and strategies are thoroughly described in \emph{Computational Methods for Inverse Problems} \cite{vogel_computational_2002}. Regularization biases an optimization process used to find a possible solution. This bias allows one to tune the output towards an expected property of the solution, such as smoothness.
 
 The two forms of regularization which this work will explore are Tikhonov Regularization, which is also known as L2 or Ridge Regression, and Total Variation Regularization. Tikhonov regularization biases the optimization towards smoother results, while total variation regularization biases results towards blocky results.
 
-\subsubsection*{Tikhonov Regularization}
-To bias the optimization towards smooth results, the penalty function attempts to minimize the residuals between the blurred estimate of the solution and the blurred image. This is just a least-squares regression and ensures that the solution maintains some semblance of the blurred image. To make this Tihonov Regularization, the variance is added to the penalty function, which reduces the cost of smoother results compared to noisy or blocky ones. The full optimizer is Equation \eqref{eqn:TIK}. The addition of the Tikhonov factor improves the conditioning of the system, allowing for an explicit form shown in Equation \eqref{eqn:expTIK}. Matrix \textbf{L} is the Tikhonov Matrix, and is simply the identity matrix in this application, while $\alpha$ is a weight parameter that allows for control over how much penalty the variance provides.
+\subsubsection{Tikhonov Regularization}
+To bias the optimization towards smooth results, as seen in Figure \ref{fig:tik_demo}, the penalty function attempts to minimize the residuals between the blurred estimate of the solution and the blurred image. This is just a least-squares regression and ensures that the solution maintains some semblance of the blurred image. To make this Tikhonov Regularization, the variance is added to the penalty function, which reduces the cost of smoother results compared to noisy or blocky ones. The full optimizer is Equation \eqref{eqn:TIK}. The addition of the Tikhonov factor improves the conditioning of the system, allowing for an explicit form shown in Equation \eqref{eqn:expTIK}. Matrix \textbf{L} is the Tikhonov Matrix, and is simply the identity matrix in this application, while $\alpha$ is a weight parameter that allows for control over how much penalty the variance provides.
 
 \begin{equation}
   \label{eqn:TIK}
@@ -265,15 +254,48 @@ To bias the optimization towards smooth results, the penalty function attempts t
   = \left(\mathbf{A}^T\mathbf{A} + \alpha \mathbf{L}^T\mathbf{L}\right)^{-1}\mathbf{A}^T\mathbf{b}
 \end{equation}
 
-\subsubsection*{Total Variation Regularization}
-To bias a solution towards blocky or segmented results, the penalty function must be changed. The base function is still a least-squares solver, as we still need to ensure that the blurred true image is as close to the actual blurred image as possible. Added to the penalty is the weighted Total Variation. This is found using a matrix 1-norm of the product of a discrete derivative operator \textbf{D} with the current image solution. The full optimizer is below in Equation \eqref{eqn:TV}. $\alpha$ shares the same use here as it does with the Tikhonov regularizer.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=8cm]{demo_tik.png}
+  \caption{An example output from a Tikhonov regularization process. This sample image includes both smooth and blocky regions. Notice how the deblurred output has small residuals and accurate solutions for the smooth regions, but incorrectly predicts that the sharp edges are smooth as well.}
+  \label{fig:tik_demo}
+\end{figure}
+
+\subsubsection{Total Variation Regularization}
+To bias a solution towards blocky or segmented results, as demonstrated in Figure \ref{fig:tv_demo}, the penalty function must be changed. The base function is still a least-squares solver, as we still need to ensure that the blurred true image is as close to the actual blurred image as possible. Added to the penalty is the weighted Total Variation. This is found using a matrix 1-norm of the product of a discrete derivative operator \textbf{D} with the current image solution. The full optimizer is below in Equation \eqref{eqn:TV}. $\alpha$ shares the same use here as it does with the Tikhonov regularizer.
 
 \begin{equation}
   \label{eqn:TV}
   \mathbf{x}_{TV}=\textrm{argmin}_x\left(\frac{1}{2}||\mathbf{Ax}-\mathbf{b}||^2_2 + \alpha\; ||\mathbf{Dx}||_1\right)
 \end{equation}
 
-\subsection*{Parameter Selection}
+There is no closed form solution for this optimizer, so iterative approaches are required. This work started by performing the Lagged Diffusivity Fixed Point method \cite{vogel_computational_2002}, but a Split Bregman implementation was used for the final results. \cite{getreuer_total_2012}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=8cm]{demo_tv.png}
+  \caption{An example output from a Total Variation regularization process. This sample image includes both smooth and blocky regions. Notice how the deblurred output has extremely accurate solutions for the flat regions, and reasonably accurate solutions across the image, but incorrectly resolves gradients to be ``scaly'' and segmented.}
+  \label{fig:tv_demo}
+\end{figure}
+
+\begin{algorithm}[H]
+            \begin{algorithmic}
+                \STATE v := 0;
+                \STATE \textbf{x}$_0$ := initial guess;
+                \STATE begin fixed point iterations
+                \STATE \hspace{2em} $L_v$ := $L$(\textbf{x}$_v$); \hspace{1em} \% \emph{discretized diffusion operator}
+                \STATE \hspace{2em} \textbf{g}$_v$ := $A^T(A\mathbf{x}_v - \mathbf{b}) + \alpha L_v\mathbf{x_v}$; \hspace{1em} \% \emph{gradient}
+                \STATE \hspace{2em} $H = A^T A + \alpha L_v$; \hspace{1em} \% \emph{approximate Hessian}
+                \STATE \hspace{2em} $\mathbf{s}_{v+1} := -H^{-1}\mathbf{g}_v$; \hspace{1em} \% \emph{quasi-Newton step}
+                \STATE \hspace{2em} $\mathbf{x}_{v+1} := \mathbf{x}_v + \mathbf{s}_v$; \hspace{1em} \% \emph{update approximate solution}
+                \STATE \hspace{2em} $v := v+1$;
+                \STATE end fixed point iterations
+            \end{algorithmic}
+            \caption{Lagged Diffusivity Fixed Point Method for Total-Variation Penalized Least Squares \cite{vogel_computational_2002}}
+            \label{alg:seq}
+        \end{algorithm}
+
+\subsection{Parameter Selection}
 You may notice that both of these regularization optimizers require a weight parameter $\alpha$. This can be selected arbitrarily by whoever executes the code based on observed changes or prior knowledge, or it can be estimated algorithmically. Algorithmic determination is better suited for this application, though may yield worse results than the user may want, due to ideal outcomes being subjective in nature and difficult to quantify in an optimizer.
 
 Ideally, we could just compare the outcome with an arbitrary parameter to the true image we are solving for, then vary the parameter to minimize residuals. Due to obvious reasons, this is an unrealistic case. We must instead find a reasonably accurate method to predict the error in the solution. This is done via Generalized Cross Validation (GCV).
@@ -290,78 +312,81 @@ Unlike typical GCV use, we don't have knowledge of the true image to validate ag
   \mathbf{F}_\alpha = \mathbf{A}\left(\mathbf{A}^T \mathbf{A} + \alpha \mathbf{L}\right)\mathbf{A}^T
 \end{equation}
 
-Though there is no derivation for total variation, there are other works which attempt to create a strong GCV cost function for it. Dr. You-Wei Wen of Hunan Normal University \cite{wen_using_2018} derives a GCV function for total variation by finding a representation resembling Tikhonov regularization, then using the known Tikhonov derivation to find the cost. This method will likely be implemented in this work, but that is uncertain.
+Though there is no derivation for total variation, there are other works which attempt to create a strong GCV cost function for it. Dr. You-Wei Wen of Hunan Normal University \cite{wen_using_2018} derives a GCV function for total variation by finding a representation resembling Tikhonov regularization, then using the known Tikhonov derivation to find the cost. This method appears promising but the implementation in this project's codebase remains a task for the future.
 
 
-\section*{Methodology}
+\section{Methodology}
+\subsection{Estimating Blur}
 Now that we have the foundation of this work laid out, the actual focus of what will be executed must be explained. Within the regularization systems described, all systems rely heavily on the blurring matrix \textbf{A}. If you recall, this matrix is a prediction of what the real blurring process changed, and not a perfect match. This prediction relies on assumptions which may be flawed, and the actual model matching is influenced by noise and randomness within a given observation. We would like to understand how error in this prediction propagates through the regularization and GCV processes to affect the final resolved image.
 
 The calibration process used to predict the blurring matrix is rather simple. To observe blur, we can simply image a line pair (Figure \ref{fig:linepairs}) and measure the value across it, as seen in Figure \ref{fig:esf}. These measurements describe the blur directly, though the noise makes the raw data unsuitable for further work. The PSF must be smooth and continuous, so we must find a smooth, continuous function to match the data. The curve clearly approximates a logistic function, so that is what is used in these examples. Figure \ref{fig:psf} shows how the derivative of this function has the shape of a normal distribution, and thus fits the processes seen in Figure \ref{tikz:1dkernel}. This curve is prepared for the process by simply truncating it to halfway, and padding the end with zeros to achieve the required size, seen in Figure \ref{fig:psfmatrix}. In an ideal scenario, there would be no blur at all and the edge of the line pair would simply be a jump discontinuity to the new value.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=7.5cm]{imgcompare.png}
+  \includegraphics[width=11cm]{imgcompare.png}
   \caption{A side-by-side comparison of the true line pair calibration image, containing jump discontinuities from high to low values along both the x and y axes, with the observed result. Note that the observed result is blurred, has considerable noise, and has lost contrast.}
   \label{fig:linepairs}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=8cm]{edgefit.png}
+  \includegraphics[width=11cm]{edgefit.png}
   \caption{The values across a single row of pixels from the blurred image seen in Figure \ref{fig:linepairs}. The raw values are noisy but follow a logistic function, so a logistic function has been fit to the data.}
   \label{fig:esf}
 \end{figure}
 
-The noise alters the residuals when performing the curve fitting, leading to uncertainty in what the real blur is. Due to this, one can curve fit in a manner which gives a lower and upper bound on values which produce a solution with the residual beneath some arbitrary threshold. Sampling can be performed within that range, and the resulting curve can be used for the regularization process. There may be a way to use the Signal-To-Noise ratio to be able to quantify the confidence of how well the curve fit may match the real blur performed.
+This model allows us to define the blur in terms of only one variable: the standard deviation of the normal distribution. The noise alters the residuals when performing the curve fitting, leading to uncertainty in what the real value is. To thoroughly test the space, weighted sampling can be performed within a few standard deviations from the mean. The resulting curve can be used for the regularization process.
 
-This problem takes the form of forward propagation of uncertainty, and will consist of taking samples and propagating them through the models to compare the results. Ironically, such a complex foundation of the work has ended up resulting in a rather simple practice in descriptive statistics in the end. 
+This problem takes the form of forward propagation of uncertainty. The deblurring process will be interpreted as a black-box and uncertainty analysis will focus only on the scalar input and the matrix output. The analysis consists of taking samples and propagating them through the models to compare the results. Ironically, such a complex foundation of the work has ended up resulting in a rather simple practice in descriptive statistics in the end. 
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=8cm]{derivedpsf.png}
+  \includegraphics[width=11cm]{derivedpsf.png}
   \caption{The discrete derivative values of both the raw values and the logistic best fit, showing a smooth continuous normal-like function from the logistic curve, and effectively random noise from the raw values. This highlights the importance of the curve fit.}
   \label{fig:psf}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=8cm]{matrixpsf.png}
+  \includegraphics[width=11cm]{matrixpsf.png}
   \caption{The truncated derivative curve, normalized to a sum of 0.5, such that it can be used to create the blurring matrix in the process initially described in Figure \ref{tikz:1dkernel}.}
   \label{fig:psfmatrix}
 \end{figure}
 
-To conduct this forward propagation, curve fitting will be performed to determine the best fit. The curve will fit to several rows of the calibration image, rather than just one, to attempt to reduce the effect of noise. Based on the initial solution, Monte Carlo sampling allows for sampling around the parameter. Normally-distributed samples should work well. Each sample will be processed, and the discrete convolution matrix generated.
+\subsection{Uncertainty Analysis Methods}
+All uncertainty analysis focuses on how each individual pixel varies with the input parameter. The input parameter is the hypothesized standard deviation of the Gaussian PSF. The primary statistics gathered across the images will be the pixel-wise mean and the pixel-wise variance. On its own, the pixel-wise mean just informs the user about the average intensities across all solutions. While on its own this isn't a suitable solution, it does at least provide a basic understanding of trends across the image. 
 
-Initial plans for the computation consist of the following:
+Alternatively, pixel-wise variance provides useful information on its own. Pixels with low variance across all solutions are stable while pixels with high variance are unstable. A low-frequency region of the image is likely to be stable, while edges and other regions where higher frequencies must be recovered will be unstable and very sensitive to changes in the blurring kernel. Together these methods model the uncertainty of the solutions. Basic interpretation can follow Table \ref{table:meanvar}.
 
-\begin{enumerate}
-  \item Assign a sampled parameter to two threads from a set of worker threads.
-  \item Each parameter is run through the Tikhonov and Total Variation regularizers.\\
-    \begin{itemize}
-      \vspace*{-0.5em}
-      \item Tikhonov regularization is fairly easy to accelerate with Numexpr or Numba.
-      \item Total Variation is more complex, but can be distributed with PyLOPs, and PyLOPs-MPI.
-    \end{itemize}
-  \item Results are aggregated, new workers are deployed until all samples return results.
-  \item Solution images will be stacked into a tensor, with statistics computed along the new axis element-wise, such as standard deviation.
-\end{enumerate}
+\begin{table}
+  \centering
+  \begin{tabular}{|l|l|l|}
+    \hline
+    Mean & Variance & Meaning\\
+    \hline\hline
+    LOW & LOW & Pixel has low intensity with low uncertainty.\\\hline
+    LOW & HIGH & Pixel has low intensity but has high uncertainty. \\\hline
+    HIGH & LOW & Pixel has high intensity with low uncertainty. \\\hline
+    HIGH & HIGH & Pixel has high intensity but has high uncertainty.\\\hline
+  \end{tabular}
+  \caption{A basic method of interpreting the pixel-wise mean and pixel-wise variance outputs together.}
+  \label{table:meanvar}
+\end{table}
+
+\subsection{Computational Methods}
+
+\subsubsection{Procedure}
 
 
-\section*{Results}
+\section{Results}
 
 
-\section*{Discussion}
-\begin{itemize}
-  \item \normalsize \st{Topic Submission} \footnotesize Due September 20th
-  \item \normalsize \st{Project Proposal} \footnotesize Due October 28th
-  \item \normalsize Preliminary Report/Presentation \footnotesize Due November 18th
-  \item \normalsize Rough Draft \footnotesize Due December 2nd
-  \item \normalsize Final Report \footnotesize Due December 9th
-\end{itemize}
+\section{Discussion}
 
-\section*{Conclusion}
+\section{Conclusion}
 
-\section*{Acknowledgements}
+\section{Acknowledgements}
+Existing work in this application is thoroughly explored by Dr. Jordan Pillow of the Nevada National Security Site in his 2021 PhD Thesis. \cite{pillow_bayesian_2021} % TODO
 
 %\nocite{*}
 \printbibliography
