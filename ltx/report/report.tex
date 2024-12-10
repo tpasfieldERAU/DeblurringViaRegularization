@@ -373,7 +373,11 @@ Alternatively, pixel-wise variance provides useful information on its own. Pixel
   \label{table:meanvar}
 \end{table}
 
+A more complex form of uncertainty analysis is sensitivity analysis. Sensitivity analysis attempts to pair a linear regression model to the intensity at each pixel versus the input parameter. This is achieved efficiently by using Scikit-Learn. The slope of the model shows the direction and magnitude of the correlation, and the R$^2$ value shows the goodness-of-fit. The pearson correlation coefficient is also calculated for each pixel as a secondard metric.
+
 \subsection{Computational Methods}
+The obvious approach to this problem is to simply define all the matrices in full and perform all multiplications as described.
+
 
 \subsubsection{Procedure}
 
